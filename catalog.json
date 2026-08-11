@@ -21,6 +21,25 @@
                                          "runner":  "--case {case} --input {input} --output {output}",
                                          "reportPath":  "report.html"
                                      }
+                    },
+                    {
+                        "id":  "log-rule-editor",
+                        "name":  "日志分析规则编辑器",
+                        "version":  "1.0.0",
+                        "description":  "离线导入、编辑、校验并导出日志分析 JSON 规则。",
+                        "author":  "thelinyue",
+                        "license":  "MIT",
+                        "minWorkbenchVersion":  "1.0.0",
+                        "repository":  "https://github.com/thelinyue/log-analyzer-rule-builder",
+                        "downloadUrl":  "https://github.com/thelinyue/log-analyzer-rule-builder/releases/download/v1.0.0/log-rule-editor-v1.0.0.zip",
+                        "sha256":  "659f978d67ece4a4f4f03280fc99b0d52f4a6a447f8b177728789651892cf20a",
+                        "manifest":  {
+                                         "id":  "log-rule-editor",
+                                         "name":  "日志分析规则编辑器",
+                                         "version":  "1.0.0",
+                                         "type":  "Exe",
+                                         "entry":  "rule_editor.exe"
+                                     }
                     }
                 ]
 }
