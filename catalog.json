@@ -1,4 +1,26 @@
 {
-  "schemaVersion": 1,
-  "plugins": []
+    "schemaVersion":  1,
+    "plugins":  [
+                    {
+                        "id":  "log-analyzer",
+                        "name":  "Log Analyzer",
+                        "version":  "1.0.0",
+                        "description":  "Analyze Windows log bundles and generate an HTML diagnostic report.",
+                        "author":  "thelinyue",
+                        "license":  "Proprietary",
+                        "minWorkbenchVersion":  "1.0.0",
+                        "repository":  "https://github.com/thelinyue/log-analyzer-plugin",
+                        "downloadUrl":  "https://github.com/thelinyue/Hephaestus-Workbench-Plugins/releases/download/log-analyzer-v1.0.0/log-analyzer-v1.0.0.zip",
+                        "sha256":  "75A852C906113238F7FB7EFA9560F0B63B0A91F254A848AA6ED487251D21E2B3",
+                        "manifest":  {
+                                         "id":  "log-analyzer",
+                                         "name":  "Log Analyzer",
+                                         "version":  "1.0.0",
+                                         "type":  "Exe",
+                                         "entry":  "log-analyzer.exe",
+                                         "runner":  "--case {case} --input {input} --output {output}",
+                                         "reportPath":  "report.html"
+                                     }
+                    }
+                ]
 }
