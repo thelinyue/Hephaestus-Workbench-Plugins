@@ -6,9 +6,9 @@
 
 ## 当前状态
 
-首版目录暂为空，目标是建立稳定的插件上架格式和审核流程。当前工作台优先支持 EXE 标准插件，DLL 插件契约尚未接入运行时。
+目录现已接入 Hephaestus Workbench v1.1.1 及以后版本。当前工作台支持 EXE 标准插件，DLL 插件契约尚未接入运行时。
 
-工作台插件运行协议参见：[插件开发文档](https://github.com/thelinyue/Hephaestus-Workbench/blob/master/docs/plugin-development.md)。
+工作台插件运行协议参见：[插件开发文档](docs/plugin-development.md)。
 
 ## 仓库结构
 
@@ -17,6 +17,7 @@ catalog.json                    # 插件目录索引
 schema/catalog.schema.json      # 索引 JSON Schema
 templates/plugin-entry.json     # 上架记录模板
 tools/validate_catalog.py       # 本地和 CI 校验脚本
+docs/plugin-development.md      # 公开插件开发与运行协议
 .github/workflows/               # 只校验，不自动发布或合并
 ```
 
@@ -30,7 +31,7 @@ your-plugin-v1.0.0.zip
 └── your-plugin.exe
 ```
 
-目录记录中的 `downloadUrl` 必须指向 GitHub Release 资产，`sha256` 必须是该 ZIP 文件的 SHA-256 校验值。商店不会在 Pull Request 中接收 EXE、DLL 或 ZIP 文件。
+目录记录中的 `packageUrl` 必须指向 GitHub Release 资产，`packageSize` 和 `sha256` 必须与该 ZIP 文件完全一致。商店不会在 Pull Request 中接收 EXE、DLL 或 ZIP 文件。
 
 ## 上架流程
 
@@ -48,7 +49,7 @@ your-plugin-v1.0.0.zip
 
 ## 目录字段
 
-每条记录包含：`id`、`name`、`version`、`description`、`author`、`license`、`minWorkbenchVersion`、`repository`、`downloadUrl`、`sha256` 和 `manifest`。
+每条记录包含客户端安装所需的 `id`、`name`、`description`、`version`、`type`、`packageUrl`、`sha256`、`packageSize`、`minimumAppVersion` 和 `releaseNotesUrl`，以及审核使用的 `author`、`license`、`repository` 和 `manifest`。
 
 `manifest` 必须与 ZIP 内的 `manifest.json` 保持一致，且当前目录只接受 `type: "Exe"`。每个插件必须明确声明自己的许可证；本仓库的目录、模板、文档和校验工具保留所有权，未授予额外复用权。
 

@@ -24,8 +24,9 @@
 复制 `templates/plugin-entry.json`，填写真实信息后加入 `catalog.json` 的 `plugins` 数组。以下字段必须准确：
 
 - `id`、`name`、`version` 必须与插件 `manifest.json` 一致。
-- `repository` 必须是插件源码仓库地址。
-- `downloadUrl` 必须是 GitHub Release 资产地址，不能指向可变的分支文件。
+- `repository` 必须是插件项目主页；闭源插件可以填写官方发行说明仓库，但必须明确许可证和源码不可用状态。
+- `packageUrl` 必须是 GitHub Release 资产地址，不能指向可变的分支文件。
+- `packageSize` 和 `sha256` 必须与下载资产完全一致，`releaseNotesUrl` 必须使用 HTTPS。
 - `sha256` 必须是对应 ZIP 文件的 64 位十六进制 SHA-256 值。
 - `license` 必须说明插件实际采用的许可证。
 - `manifest.entry` 必须是 ZIP 内的相对入口路径，不能越出插件目录。

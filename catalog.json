@@ -1,26 +1,29 @@
 {
-    "schemaVersion":  1,
-    "plugins":  [
-                    {
-                        "id":  "log-analyzer",
-                        "name":  "Log Analyzer",
-                        "version":  "1.0.0",
-                        "description":  "Analyze Windows log bundles and generate an HTML diagnostic report.",
-                        "author":  "thelinyue",
-                        "license":  "Proprietary",
-                        "minWorkbenchVersion":  "1.0.0",
-                        "repository":  "https://github.com/thelinyue/log-analyzer-plugin",
-                        "downloadUrl":  "https://github.com/thelinyue/Hephaestus-Workbench-Plugins/releases/download/log-analyzer-v1.0.0/log-analyzer-v1.0.0.zip",
-                        "sha256":  "75A852C906113238F7FB7EFA9560F0B63B0A91F254A848AA6ED487251D21E2B3",
-                        "manifest":  {
-                                         "id":  "log-analyzer",
-                                         "name":  "Log Analyzer",
-                                         "version":  "1.0.0",
-                                         "type":  "Exe",
-                                         "entry":  "log-analyzer.exe",
-                                         "runner":  "--case {case} --input {input} --output {output}",
-                                         "reportPath":  "report.html"
-                                     }
-                    }
-                ]
+  "schemaVersion": 1,
+  "plugins": [
+    {
+      "id": "log-analyzer",
+      "name": "日志分析插件",
+      "description": "赫菲斯托斯工程工作台官方日志分析插件。",
+      "version": "1.50",
+      "type": "Exe",
+      "packageUrl": "https://github.com/thelinyue/Hephaestus-Workbench-Releases/releases/download/plugin-log-analyzer-v1.50/log-analyzer-1.50-win-x64.zip",
+      "sha256": "98096437b558b5e69c1802538c02a6454b24bd427664a382ad4586e65b086245",
+      "packageSize": 1819250,
+      "minimumAppVersion": "1.1.0",
+      "releaseNotesUrl": "https://github.com/thelinyue/Hephaestus-Workbench-Releases/releases/tag/plugin-log-analyzer-v1.50",
+      "author": "thelinyue",
+      "license": "Proprietary binary distribution",
+      "repository": "https://github.com/thelinyue/Hephaestus-Workbench-Releases",
+      "manifest": {
+        "id": "log-analyzer",
+        "name": "日志分析插件",
+        "version": "1.50",
+        "type": "Exe",
+        "entry": "log_analyzer.exe",
+        "runner": "legacy-log-analyzer",
+        "reportPath": "report/report.html"
+      }
+    }
+  ]
 }

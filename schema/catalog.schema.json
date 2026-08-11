@@ -23,14 +23,17 @@
       "required": [
         "id",
         "name",
-        "version",
         "description",
+        "version",
+        "type",
+        "packageUrl",
+        "sha256",
+        "packageSize",
+        "minimumAppVersion",
+        "releaseNotesUrl",
         "author",
         "license",
-        "minWorkbenchVersion",
         "repository",
-        "downloadUrl",
-        "sha256",
         "manifest"
       ],
       "properties": {
@@ -58,16 +61,10 @@
           "type": "string",
           "minLength": 1
         },
-        "minWorkbenchVersion": {
-          "type": "string",
-          "minLength": 1
+        "type": {
+          "const": "Exe"
         },
-        "repository": {
-          "type": "string",
-          "format": "uri",
-          "pattern": "^https://"
-        },
-        "downloadUrl": {
+        "packageUrl": {
           "type": "string",
           "format": "uri",
           "pattern": "^https://github\\.com/.+/releases/download/.+"
@@ -75,6 +72,25 @@
         "sha256": {
           "type": "string",
           "pattern": "^[0-9a-fA-F]{64}$"
+        },
+        "packageSize": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 209715200
+        },
+        "minimumAppVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "releaseNotesUrl": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://"
+        },
+        "repository": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://"
         },
         "manifest": {
           "$ref": "#/$defs/manifest"

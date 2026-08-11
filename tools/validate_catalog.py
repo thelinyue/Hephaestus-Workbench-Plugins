@@ -89,14 +89,17 @@ def validate_catalog(data: object) -> list[str]:
     required = (
         "id",
         "name",
-        "version",
         "description",
+        "version",
+        "type",
+        "packageUrl",
+        "sha256",
+        "packageSize",
+        "minimumAppVersion",
+        "releaseNotesUrl",
         "author",
         "license",
-        "minWorkbenchVersion",
         "repository",
-        "downloadUrl",
-        "sha256",
         "manifest",
     )
     for index, plugin in enumerate(plugins):
@@ -117,15 +120,22 @@ def validate_catalog(data: object) -> list[str]:
         else:
             seen_ids.add(plugin_id)
 
-        for field in ("name", "version", "description", "author", "license", "minWorkbenchVersion"):
+        for field in ("name", "version", "description", "author", "license", "minimumAppVersion"):
             if not is_non_empty_string(plugin.get(field)):
                 errors.append(f"{prefix}.{field} 不能为空。")
+        if plugin.get("type") != "Exe":
+            errors.append(f"{prefix}.type 当前只能是 Exe。")
         if not is_https_url(plugin.get("repository")):
             errors.append(f"{prefix}.repository 必须是 HTTPS 地址。")
-        if not is_release_asset_url(plugin.get("downloadUrl")):
-            errors.append(f"{prefix}.downloadUrl 必须是 GitHub Release 资产 HTTPS 地址。")
+        if not is_release_asset_url(plugin.get("packageUrl")):
+            errors.append(f"{prefix}.packageUrl 必须是 GitHub Release 资产 HTTPS 地址。")
+        if not is_https_url(plugin.get("releaseNotesUrl")):
+            errors.append(f"{prefix}.releaseNotesUrl 必须是 HTTPS 地址。")
         if not isinstance(plugin.get("sha256"), str) or not SHA256_PATTERN.fullmatch(plugin["sha256"]):
             errors.append(f"{prefix}.sha256 必须是 64 位十六进制 SHA-256。")
+        package_size = plugin.get("packageSize")
+        if not isinstance(package_size, int) or isinstance(package_size, bool) or not 1 <= package_size <= 200 * 1024 * 1024:
+            errors.append(f"{prefix}.packageSize 必须是 1 字节到 200 MB 的整数。")
         validate_manifest(plugin, errors)
 
     return errors
