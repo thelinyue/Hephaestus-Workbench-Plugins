@@ -1,0 +1,19 @@
+{
+  "id": "your-plugin-id",
+  "name": "你的插件名称",
+  "version": "1.0.0",
+  "description": "插件功能简介。",
+  "author": "作者或组织",
+  "license": "填写插件许可证，例如 MIT",
+  "minWorkbenchVersion": "1.0.0",
+  "repository": "https://github.com/OWNER/REPOSITORY",
+  "downloadUrl": "https://github.com/OWNER/REPOSITORY/releases/download/v1.0.0/your-plugin-v1.0.0.zip",
+  "sha256": "填写 ZIP 文件的 64 位 SHA-256",
+  "manifest": {
+    "id": "your-plugin-id",
+    "name": "你的插件名称",
+    "version": "1.0.0",
+    "type": "Exe",
+    "entry": "your-plugin.exe"
+  }
+}

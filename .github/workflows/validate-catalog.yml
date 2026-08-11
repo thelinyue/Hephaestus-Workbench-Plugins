@@ -1,0 +1,33 @@
+name: Validate plugin catalog
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "catalog.json"
+      - "schema/**"
+      - "tools/**"
+      - ".github/workflows/validate-catalog.yml"
+  pull_request:
+    paths:
+      - "catalog.json"
+      - "schema/**"
+      - "tools/**"
+      - ".github/workflows/validate-catalog.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate catalog
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Validate catalog
+        run: python tools/validate_catalog.py catalog.json
