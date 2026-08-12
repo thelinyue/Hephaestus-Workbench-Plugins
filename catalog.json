@@ -5,24 +5,25 @@
       "id": "log-analyzer",
       "name": "日志分析插件",
       "description": "赫菲斯托斯工程工作台官方日志分析插件。",
-      "version": "1.6",
+      "version": "1.60",
       "type": "Exe",
-      "packageUrl": "https://github.com/thelinyue/Hephaestus-Workbench-Releases/releases/download/plugin-log-analyzer-v1.6/log-analyzer-1.6-win-x64.zip",
-      "sha256": "6fdc8180ceb79a13e0e4cf0f4852197c62f0a47375c8d308738ae74ba2c752ad",
-      "packageSize": 3407171,
+      "packageUrl": "https://github.com/thelinyue/Hephaestus-Workbench-Releases/releases/download/plugin-log-analyzer-v1.60/log-analyzer-1.60-win-x64.zip",
+      "sha256": "a984d5887fe702fed2b241f1499001be2da70523fb85b5e430fb6461f7dcc9b9",
+      "packageSize": 1819274,
       "minimumAppVersion": "1.1.0",
-      "releaseNotesUrl": "https://github.com/thelinyue/Hephaestus-Workbench-Releases/releases/tag/plugin-log-analyzer-v1.6",
+      "releaseNotesUrl": "https://github.com/thelinyue/Hephaestus-Workbench-Releases/releases/tag/plugin-log-analyzer-v1.60",
       "author": "thelinyue",
       "license": "Proprietary binary distribution",
       "repository": "https://github.com/thelinyue/Hephaestus-Workbench-Plugin-Sources",
       "manifest": {
         "id": "log-analyzer",
         "name": "日志分析插件",
-        "version": "1.6",
+        "version": "1.60",
         "type": "Exe",
         "entry": "log_analyzer.exe",
         "runner": "legacy-log-analyzer",
-        "reportPath": "report/report.html"
+        "reportPath": "report/report.html",
+        "capabilities": ["analysis"]
       }
     },
     {
@@ -34,7 +35,7 @@
       "packageUrl": "https://github.com/thelinyue/Hephaestus-Workbench-Releases/releases/download/plugin-log-rule-editor-v1.0.0/log-rule-editor-v1.0.0.zip",
       "sha256": "5f779d7b73ff262b86cddf77413a21180a5a03c8af6b140a72a68ce2ccbfb834",
       "packageSize": 1632412,
-      "minimumAppVersion": "1.1.0",
+      "minimumAppVersion": "1.2.1",
       "releaseNotesUrl": "https://github.com/thelinyue/Hephaestus-Workbench-Releases/releases/tag/plugin-log-rule-editor-v1.0.0",
       "author": "thelinyue",
       "license": "MIT",
@@ -44,7 +45,8 @@
         "name": "日志分析规则编辑器",
         "version": "1.0.0",
         "type": "Exe",
-        "entry": "rule_editor.exe"
+        "entry": "rule_editor.exe",
+        "capabilities": ["rule-editor"]
       }
     }
   ]
