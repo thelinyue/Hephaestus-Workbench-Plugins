@@ -1,4 +1,43 @@
 {
   "schemaVersion": 1,
-  "plugins": []
+  "plugins": [
+    {
+      "id": "log-analyzer",
+      "name": "日志分析插件",
+      "version": "1.0.0",
+      "description": "读取案例日志并生成 HTML 诊断报告。",
+      "author": "thelinyue",
+      "license": "未声明",
+      "minWorkbenchVersion": "1.0.0",
+      "repository": "https://github.com/thelinyue/Hephaestus-Workbench-Plugin-Sources",
+      "downloadUrl": "https://github.com/thelinyue/Hephaestus-Workbench-Plugin-Sources/releases/download/log-analyzer-plugin/v1.0.0/log-analyzer-v1.0.0.zip",
+      "sha256": "faadac53905372ec9b1a2870021c6cb4145c7d2604b217964c3755027fd24681",
+      "manifest": {
+        "id": "log-analyzer",
+        "name": "日志分析插件",
+        "version": "1.0.0",
+        "type": "Exe",
+        "entry": "log_analyzer.exe"
+      }
+    },
+    {
+      "id": "log-rule-editor",
+      "name": "日志分析规则编辑器",
+      "version": "1.0.0",
+      "description": "离线编辑、检查和导出日志分析规则 JSON。",
+      "author": "thelinyue",
+      "license": "MIT",
+      "minWorkbenchVersion": "1.0.0",
+      "repository": "https://github.com/thelinyue/Hephaestus-Workbench-Plugin-Sources",
+      "downloadUrl": "https://github.com/thelinyue/Hephaestus-Workbench-Plugin-Sources/releases/download/log-analyzer-rule-builder/v1.0.0/log-rule-editor-v1.0.0.zip",
+      "sha256": "5f779d7b73ff262b86cddf77413a21180a5a03c8af6b140a72a68ce2ccbfb834",
+      "manifest": {
+        "id": "log-rule-editor",
+        "name": "日志分析规则编辑器",
+        "version": "1.0.0",
+        "type": "Exe",
+        "entry": "rule_editor.exe"
+      }
+    }
+  ]
 }
