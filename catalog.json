@@ -48,6 +48,29 @@
         "entry": "rule_editor.exe",
         "capabilities": ["rule-editor"]
       }
+    },
+    {
+      "id": "lvm-uncache-tool",
+      "name": "LVM 缓存清理工具",
+      "description": "离线解析并清理 LVM VG 配置中的缓存引用，生成可人工复核的普通卷配置。",
+      "version": "1.0.0",
+      "type": "Web",
+      "packageUrl": "https://github.com/thelinyue/Hephaestus-Workbench-Releases/releases/download/plugin-lvm-uncache-tool-v1.0.0/lvm-uncache-tool-v1.0.0.zip",
+      "sha256": "7f836de7f423516b3483ddffdd09de2b38659ea79da332ca35d90efa62e7d49c",
+      "packageSize": 10226,
+      "minimumAppVersion": "1.2.1",
+      "releaseNotesUrl": "https://github.com/thelinyue/Hephaestus-Workbench-Releases/releases/tag/plugin-lvm-uncache-tool-v1.0.0",
+      "author": "thelinyue",
+      "license": "MIT",
+      "repository": "https://github.com/thelinyue/Hephaestus-Workbench-Plugin-Sources",
+      "manifest": {
+        "id": "lvm-uncache-tool",
+        "name": "LVM 缓存清理工具",
+        "version": "1.0.0",
+        "type": "Web",
+        "entry": "index.html",
+        "capabilities": ["standalone-tool"]
+      }
     }
   ]
 }
