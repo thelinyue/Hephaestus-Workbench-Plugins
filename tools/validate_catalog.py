@@ -65,13 +65,20 @@ def validate_manifest(plugin: dict[str, object], errors: list[str]) -> None:
         elif manifest.get(field) != plugin.get(field):
             errors.append(f"{prefix}.{field} 必须与插件记录 {field} 一致。")
 
-    if manifest.get("type") != "Exe":
-        errors.append(f"{prefix}.type 当前只能是 Exe。")
+    if manifest.get("type") not in {"Exe", "Web"}:
+        errors.append(f"{prefix}.type 必须是 Exe 或 Web。")
     if not is_safe_relative_entry(manifest.get("entry")):
         errors.append(f"{prefix}.entry 必须是插件目录内的相对路径。")
+    if manifest.get("type") == "Web" and not str(manifest.get("entry", "")).lower().endswith((".html", ".htm")):
+        errors.append(f"{prefix}.entry Web 插件入口必须是 HTML 文件。")
     for optional in ("runner", "reportPath"):
         if optional in manifest and not isinstance(manifest[optional], str):
             errors.append(f"{prefix}.{optional} 必须是字符串。")
+    capabilities = manifest.get("capabilities", [])
+    if not isinstance(capabilities, list) or any(not is_non_empty_string(x) for x in capabilities) or len(capabilities) != len(set(capabilities)):
+        errors.append(f"{prefix}.capabilities 必须是无重复的非空字符串数组。")
+    if manifest.get("type") == "Web" and "standalone-tool" not in capabilities:
+        errors.append(f"{prefix}.capabilities 必须包含 standalone-tool。")
 
 
 def validate_catalog(data: object) -> list[str]:
@@ -89,17 +96,17 @@ def validate_catalog(data: object) -> list[str]:
     required = (
         "id",
         "name",
-        "description",
         "version",
+        "description",
+        "author",
+        "license",
         "type",
+        "minimumAppVersion",
+        "repository",
         "packageUrl",
         "sha256",
         "packageSize",
-        "minimumAppVersion",
         "releaseNotesUrl",
-        "author",
-        "license",
-        "repository",
         "manifest",
     )
     for index, plugin in enumerate(plugins):
@@ -120,23 +127,24 @@ def validate_catalog(data: object) -> list[str]:
         else:
             seen_ids.add(plugin_id)
 
-        for field in ("name", "version", "description", "author", "license", "minimumAppVersion"):
+        for field in ("name", "version", "description", "author", "license", "type", "minimumAppVersion"):
             if not is_non_empty_string(plugin.get(field)):
                 errors.append(f"{prefix}.{field} 不能为空。")
-        if plugin.get("type") != "Exe":
-            errors.append(f"{prefix}.type 当前只能是 Exe。")
         if not is_https_url(plugin.get("repository")):
             errors.append(f"{prefix}.repository 必须是 HTTPS 地址。")
         if not is_release_asset_url(plugin.get("packageUrl")):
             errors.append(f"{prefix}.packageUrl 必须是 GitHub Release 资产 HTTPS 地址。")
-        if not is_https_url(plugin.get("releaseNotesUrl")):
-            errors.append(f"{prefix}.releaseNotesUrl 必须是 HTTPS 地址。")
         if not isinstance(plugin.get("sha256"), str) or not SHA256_PATTERN.fullmatch(plugin["sha256"]):
             errors.append(f"{prefix}.sha256 必须是 64 位十六进制 SHA-256。")
         package_size = plugin.get("packageSize")
-        if not isinstance(package_size, int) or isinstance(package_size, bool) or not 1 <= package_size <= 200 * 1024 * 1024:
-            errors.append(f"{prefix}.packageSize 必须是 1 字节到 200 MB 的整数。")
+        if not isinstance(package_size, int) or isinstance(package_size, bool) or not 0 < package_size <= 200 * 1024 * 1024:
+            errors.append(f"{prefix}.packageSize 必须是 1 到 200 MB 之间的整数。")
+        if not is_https_url(plugin.get("releaseNotesUrl")):
+            errors.append(f"{prefix}.releaseNotesUrl 必须是 HTTPS 地址。")
         validate_manifest(plugin, errors)
+        manifest = plugin.get("manifest")
+        if isinstance(manifest, dict) and manifest.get("type") != plugin.get("type"):
+            errors.append(f"{prefix}.type 必须与 manifest.type 一致。")
 
     return errors
 
