@@ -69,6 +69,21 @@ def validate_catalog(path: Path) -> list[str]:
             errors.append(f"{package_path}: 规则版本与清单不一致")
         if not isinstance(package.get("files"), list):
             errors.append(f"{package_path}: files 必须是数组")
+        else:
+            # 客户端合并时会按“文件 + 规则 + 正则标记”建立唯一索引，发布前必须拦截重复项。
+            for file_entry in package["files"]:
+                if not isinstance(file_entry, dict) or not isinstance(file_entry.get("keywords"), list):
+                    continue
+                seen_rules: set[tuple[str, bool]] = set()
+                for rule in file_entry["keywords"]:
+                    if not isinstance(rule, dict):
+                        continue
+                    rule_key = (str(rule.get("term", "")), bool(rule.get("regex", False)))
+                    if rule_key in seen_rules:
+                        errors.append(
+                            f"{package_path}: 文件 {file_entry.get('name', '<unknown>')} 存在重复规则 {rule_key[0]}"
+                        )
+                    seen_rules.add(rule_key)
     except json.JSONDecodeError as exc:
         errors.append(f"{package_path}: 规则包不是有效 JSON: {exc}")
     return errors
