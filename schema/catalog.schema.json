@@ -53,6 +53,23 @@
           "type": "string",
           "minLength": 1
         },
+        "category": {
+          "enum": ["日志分析", "规则工具", "运维工具", "其他"]
+        },
+        "iconUrl": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://"
+        },
+        "screenshots": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https://"
+          },
+          "uniqueItems": true
+        },
         "author": {
           "type": "string",
           "minLength": 1

@@ -77,8 +77,8 @@ def validate_manifest(plugin: dict[str, object], errors: list[str]) -> None:
     capabilities = manifest.get("capabilities", [])
     if not isinstance(capabilities, list) or any(not is_non_empty_string(x) for x in capabilities) or len(capabilities) != len(set(capabilities)):
         errors.append(f"{prefix}.capabilities 必须是无重复的非空字符串数组。")
-    if manifest.get("type") == "Web" and "standalone-tool" not in capabilities:
-        errors.append(f"{prefix}.capabilities 必须包含 standalone-tool。")
+    if manifest.get("type") == "Web" and not ({"standalone-tool", "rule-editor"} & set(capabilities)):
+        errors.append(f"{prefix}.capabilities Web 插件必须包含 standalone-tool 或 rule-editor。")
 
 
 def validate_catalog(data: object) -> list[str]:

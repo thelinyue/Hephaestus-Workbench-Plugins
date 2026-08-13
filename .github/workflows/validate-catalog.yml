@@ -5,12 +5,14 @@ on:
     branches: [main]
     paths:
       - "catalog.json"
+      - "rules/**"
       - "schema/**"
       - "tools/**"
       - ".github/workflows/validate-catalog.yml"
   pull_request:
     paths:
       - "catalog.json"
+      - "rules/**"
       - "schema/**"
       - "tools/**"
       - ".github/workflows/validate-catalog.yml"
@@ -31,3 +33,5 @@ jobs:
           python-version: "3.x"
       - name: Validate catalog
         run: python tools/validate_catalog.py catalog.json
+      - name: Validate encrypted rules
+        run: python tools/validate_rules.py

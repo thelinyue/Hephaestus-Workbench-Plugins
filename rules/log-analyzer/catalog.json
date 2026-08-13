@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "ruleSetId": "log-analyzer",
+  "pluginId": "log-analyzer",
+  "version": "2026.08.13",
+  "minimumPluginVersion": "1.0.2",
+  "algorithm": "AES-256-GCM",
+  "rulesUrl": "https://raw.githubusercontent.com/thelinyue/Hephaestus-Workbench-Plugins/main/rules/log-analyzer/versions/2026.08.13.json.enc",
+  "sha256": "08b7c3a3b8b7e5a16596fc69df39c9fcc980c2e5b16fbdcdb48c88b5f4fc7fdf",
+  "packageSize": 30580,
+  "releaseNotesUrl": "https://github.com/thelinyue/Hephaestus-Workbench-Plugins/commits/main/rules/log-analyzer"
+}

@@ -3,6 +3,7 @@
   "name": "你的插件名称",
   "version": "1.0.0",
   "description": "插件功能简介。",
+  "category": "其他",
   "author": "作者或组织",
   "license": "填写插件许可证，例如 MIT",
   "minimumAppVersion": "1.2.1",

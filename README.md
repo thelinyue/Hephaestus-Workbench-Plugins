@@ -13,15 +13,25 @@
 
 ```text
 catalog.json
+rules/log-analyzer/catalog.json
+rules/log-analyzer/versions/*.json.enc
 schema/catalog.schema.json
 templates/plugin-entry.json
 tools/validate_catalog.py
+tools/validate_rules.py
 ```
+
+## 加密主规则
+
+`rules/log-analyzer/catalog.json` 只保存公开元数据，`rules/log-analyzer/versions/*.json.enc` 保存 AES-256-GCM 密文。仓库不提交主规则明文、工作台内置密钥或用户上传 Token。
+
+密文清单使用 `ruleSetId` 和版本标识，客户端会先校验 HTTPS 地址、文件大小和 SHA-256，再校验 GCM 标签及解密后的规则结构。规则更新与插件 EXE 更新相互独立。
 
 ## 本地校验
 
 ```powershell
 python tools/validate_catalog.py catalog.json
+python tools/validate_rules.py
 ```
 
 每条记录的 `manifest` 必须与 ZIP 根目录中的 `manifest.json` 保持一致。Web 插件的入口必须是插件目录内的 HTML 文件，并通过 `capabilities: ["standalone-tool"]` 声明其不参与案例分析流程。
