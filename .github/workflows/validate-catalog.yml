@@ -33,5 +33,5 @@ jobs:
           python-version: "3.x"
       - name: Validate catalog
         run: python tools/validate_catalog.py catalog.json
-      - name: Validate encrypted rules
+      - name: Validate signed rules
         run: python tools/validate_rules.py
