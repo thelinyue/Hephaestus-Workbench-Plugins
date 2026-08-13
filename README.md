@@ -16,6 +16,19 @@ catalog.json
 schema/catalog.schema.json
 templates/plugin-entry.json
 tools/validate_catalog.py
+
+## 加密主规则
+
+`rules/log-analyzer/catalog.json` 只保存公开元数据，`rules/log-analyzer/versions/*.json.enc` 保存 AES-256-GCM 密文。仓库不提交主规则明文、工作台内置密钥或用户上传 Token。
+
+密文清单使用 `ruleSetId` 和版本标识，客户端会先校验 HTTPS 地址、文件大小和 SHA-256，再校验 GCM 标签及解密后的规则结构。规则更新与插件 EXE 更新相互独立。
+
+本地校验：
+
+```powershell
+python tools/validate_catalog.py catalog.json
+python tools/validate_rules.py
+```
 ```
 
 ## 本地校验
