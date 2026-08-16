@@ -37,7 +37,7 @@
       "packageUrl": "https://github.com/thelinyue/Hephaestus-Workbench-Releases/releases/download/plugin-log-rule-editor-v1.2.5/log-rule-editor-v1.2.5.zip",
       "sha256": "ae719cbf77dc4854267a6239e62f1572db6498ab1967208a93c8162dcc739746",
       "packageSize": 24371,
-      "minimumAppVersion": "1.2.11",
+      "minimumAppVersion": "1.2.12",
       "releaseNotesUrl": "https://github.com/thelinyue/Hephaestus-Workbench-Releases/releases/tag/plugin-log-rule-editor-v1.2.5",
       "author": "thelinyue",
       "license": "MIT",
