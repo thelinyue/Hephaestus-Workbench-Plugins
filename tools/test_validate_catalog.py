@@ -17,11 +17,43 @@ VALID_SIGNATURE = base64.b64encode(bytes(range(64))).decode("ascii")
 VALID_SHA256 = "0123456789abcdef" * 4
 MAX_PACKAGE_BYTES = 209_715_200
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
+DNS_LABEL_63 = "a" * 63
+DNS_LABEL_64 = "a" * 64
+DNS_HOST_253 = ".".join(("a" * 63, "b" * 63, "c" * 63, "d" * 61))
+DNS_HOST_254 = ".".join(("a" * 63, "b" * 63, "c" * 63, "d" * 62))
 RELEASE_URL_CORPUS = (
+    # 基础 HTTPS、DNS、IPv4 和端口边界。
     ("https://example.test/releases/package.zip", True),
     ("HTTPS://downloads.example.test:443/releases/package.zip?source=catalog", True),
     ("https://192.0.2.1/releases/package.zip", True),
     ("https://192.0.2.1:443/releases/package.zip", True),
+    ("https://example.test:0443/releases/package.zip", False),
+    ("https://example.test:444/releases/package.zip", False),
+    ("https://example.test:bad/releases/package.zip", False),
+    ("https://example.test:/releases/package.zip", False),
+    # DNS label、总长和尾随根点边界。
+    (f"https://{DNS_LABEL_63}.example/releases/package.zip", True),
+    (f"https://{DNS_LABEL_64}.example/releases/package.zip", False),
+    ("https://good-label.example/releases/package.zip", True),
+    ("https://-leading.example/releases/package.zip", False),
+    ("https://trailing-.example/releases/package.zip", False),
+    (f"https://{DNS_HOST_253}/releases/package.zip", True),
+    (f"https://{DNS_HOST_253}:443/releases/package.zip", True),
+    (f"https://{DNS_HOST_254}/releases/package.zip", False),
+    ("https://example.test./releases/package.zip", False),
+    ("https://bad..example.test/releases/package.zip", False),
+    ("https://bad_name.example.test/releases/package.zip", False),
+    ("https://例子.测试/releases/package.zip", False),
+    # 严格 IPv4 与非法纯数字主机。
+    ("https://0.0.0.0/releases/package.zip", True),
+    ("https://255.255.255.255/releases/package.zip", True),
+    ("https://256.0.0.1/releases/package.zip", False),
+    ("https://01.2.3.4/releases/package.zip", False),
+    ("https://1.2.3/releases/package.zip", False),
+    ("https://1.2.3.4.5/releases/package.zip", False),
+    ("https://999.999.999.999/releases/package.zip", False),
+    ("https://1234/releases/package.zip", False),
+    # 所有方括号 authority 均拒绝。
     ("https://[2001:db8::1]/releases/package.zip", False),
     ("https://[2001:db8::1]:443/releases/package.zip", False),
     ("https://[fe80::1%25eth0]/releases/package.zip", False),
@@ -29,19 +61,34 @@ RELEASE_URL_CORPUS = (
     ("https://[192.0.2.1]/releases/package.zip", False),
     ("https://[v1.fe80::]/releases/package.zip", False),
     ("https://[invalid/releases/package.zip", False),
+    # 凭据、fragment、反斜杠和控制字符。
+    ("https://@example.test/releases/package.zip", False),
+    ("https://user@example.test/releases/package.zip", False),
+    ("https://user:password@example.test/releases/package.zip", False),
+    ("https://example.test/releases/package.zip#", False),
+    ("https://example.test/releases/package.zip#fragment", False),
     ("https://example.test\\evil.test/releases/package.zip", False),
     ("https://example.test\\@evil.test/releases/package.zip", False),
     ("https://example.test/releases/\npackage.zip", False),
+    ("https://example.test/releases/\rpackage.zip", False),
+    ("https://example.test/releases/\r\npackage.zip", False),
     ("https://example.test/releases/package.zip\n", False),
-    ("https://user@example.test/releases/package.zip", False),
-    ("https://user:password@example.test/releases/package.zip", False),
-    ("https://example.test/releases/package.zip#fragment", False),
-    ("https://example.test:/releases/package.zip", False),
-    ("https://example.test:444/releases/package.zip", False),
-    ("https://example.test:bad/releases/package.zip", False),
-    ("https://bad..example.test/releases/package.zip", False),
-    ("https://bad_name.example.test/releases/package.zip", False),
-    ("https://例子.测试/releases/package.zip", False),
+    ("https://example.test/releases/package.zip\r", False),
+    ("https://example.test/releases/package.zip\r\n", False),
+    # 百分号编码、query-only、空 query 和复杂 query。
+    ("https://example.test/releases/%5Bpackage%5D.zip", True),
+    ("https://example.test/releases/%5bpackage%5d.zip", True),
+    ("https://example.test/releases/package.zip?name=%5Bpackage%5D", True),
+    ("https://example.test/releases/package.zip?", True),
+    ("https://example.test?download=1", True),
+    ("https://example.test/releases/package.zip?name=v2.0.0+build%201&mode=full;source=catalog", True),
+    ("https://example.test/releases/package%.zip", False),
+    ("https://example.test/releases/package%5.zip", False),
+    ("https://example.test/releases/package%GG.zip", False),
+    # 原始方括号不得出现在 path/query，只允许百分号编码。
+    ("https://example.test/releases/[package].zip", False),
+    ("https://example.test/releases/package.zip?name=[package]", False),
+    ("https://example.test/releases/package.zip?left=%5B&right=%5D", True),
     ("https:///releases/package.zip", False),
 )
 
@@ -174,6 +221,8 @@ class CatalogV2ValidatorTests(unittest.TestCase):
                 self.assert_invalid(data, field)
 
     def test_release_url_corpus_matches_python_validator(self) -> None:
+        self.assertEqual(253, len(DNS_HOST_253))
+        self.assertEqual(254, len(DNS_HOST_254))
         for url, expected in RELEASE_URL_CORPUS:
             with self.subTest(url=url):
                 data = make_catalog()

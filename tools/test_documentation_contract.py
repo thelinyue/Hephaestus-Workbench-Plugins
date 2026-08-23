@@ -210,6 +210,10 @@ class DocumentationV2ContractTests(unittest.TestCase):
                 self.assertIn("不支持 IPv6", text)
                 self.assertIn("scoped IPv6", text)
                 self.assertIn("路径和查询只允许 ASCII URI 字符", text)
+                self.assertIn("DNS 主机总长最多 253", text)
+                self.assertIn("不允许尾随根点", text)
+                self.assertIn("原始 `[` 或 `]`", text)
+                self.assertIn("`%5B`/`%5D`", text)
                 self.assertIn("[A-Za-z0-9](?:[A-Za-z0-9._-]{0,63})", text)
 
     def test_natural_language_denials_do_not_trigger_machine_checks(self) -> None:

@@ -19,11 +19,16 @@ _IPV4_HOST_PATTERN = rf"(?:{_IPV4_OCTET_PATTERN}\.){{3}}{_IPV4_OCTET_PATTERN}"
 _DNS_LABEL_PATTERN = r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
 _DNS_HOST_PATTERN = (
     rf"(?=[A-Za-z0-9.-]*[A-Za-z]){_DNS_LABEL_PATTERN}"
-    rf"(?:\.{_DNS_LABEL_PATTERN})*\.?"
+    rf"(?:\.{_DNS_LABEL_PATTERN})*"
 )
-_URI_CHARACTER_PATTERN = r"(?:[A-Za-z0-9._~:/?@!$&'()*+,;=\[\]-]|%[0-9A-Fa-f]{2})"
+# authority host 最多 253 字符；端口、路径和 query 不计入主机长度。
+_AUTHORITY_HOST_LENGTH_ASSERTION = (
+    r"(?=[A-Za-z0-9.-]{1,253}(?::443)?(?:[/?]|(?![\s\S])))"
+)
+_URI_CHARACTER_PATTERN = r"(?:[A-Za-z0-9._~:/?@!$&'()*+,;=-]|%[0-9A-Fa-f]{2})"
 HTTPS_URL_PATTERN_TEXT = (
-    rf"^[Hh][Tt][Tt][Pp][Ss]://(?:{_IPV4_HOST_PATTERN}|{_DNS_HOST_PATTERN})"
+    rf"^[Hh][Tt][Tt][Pp][Ss]://{_AUTHORITY_HOST_LENGTH_ASSERTION}"
+    rf"(?:{_IPV4_HOST_PATTERN}|{_DNS_HOST_PATTERN})"
     rf"(?::443)?(?:[/?]{_URI_CHARACTER_PATTERN}*)?(?![\s\S])"
 )
 HTTPS_URL_PATTERN = re.compile(HTTPS_URL_PATTERN_TEXT)

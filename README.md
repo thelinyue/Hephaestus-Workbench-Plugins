@@ -121,7 +121,7 @@ runtime 字段集合是严格的：`web` 只能包含 `kind`、`entry`，`proces
 
 每个 release 的 Ed25519 `signature` 覆盖原始 ZIP 字节。目录只保存 `keyId` 和 Base64 签名，**不能携带公钥**；`keyId` 是否受信任以及允许的发布者、扩展类别和权限范围，完全由 Workbench 内置信任表决定。
 
-release `url` 必须是安全的绝对 HTTPS 地址：不得包含用户名或密码、fragment 或显式空端口，只能省略端口或显式使用 `443`；主机仅允许 ASCII DNS 名称（国际化域名须使用 punycode）或严格 IPv4；不支持 IPv6，包括标准无 scope IPv6、scoped IPv6 和 IPvFuture，也不接受方括号 IPv4。路径和查询只允许 ASCII URI 字符，其他字符必须使用百分号编码。`keyId` 必须匹配 ASCII `[A-Za-z0-9](?:[A-Za-z0-9._-]{0,63})`（总长 1–64），不得包含空白、控制字符、路径片段或非 ASCII 字符。
+release `url` 必须是安全的绝对 HTTPS 地址：不得包含用户名或密码、fragment 或显式空端口，只能省略端口或显式使用 `443`；主机仅允许 ASCII DNS 名称（国际化域名须使用 punycode）或严格 IPv4；DNS 主机总长最多 253，不允许尾随根点；不支持 IPv6，包括标准无 scope IPv6、scoped IPv6 和 IPvFuture，也不接受方括号 IPv4。路径和查询只允许 ASCII URI 字符，其他字符必须使用百分号编码；原始 `[` 或 `]` 不允许，必须分别编码为 `%5B`/`%5D`。`keyId` 必须匹配 ASCII `[A-Za-z0-9](?:[A-Za-z0-9._-]{0,63})`（总长 1–64），不得包含空白、控制字符、路径片段或非 ASCII 字符。
 
 当前尚无可公开发布的真实签名资产，因此 `catalog.json` 只保留 `schemaVersion: 2`，并且 `extensions` 必须保持为空。只有正式发布流水线生成最终 ZIP，并取得真实大小、SHA-256、受信 `keyId` 和 Ed25519 签名且完成反向校验后，才允许向目录加入 release；仓库不得保存或发布占位 release。
 
