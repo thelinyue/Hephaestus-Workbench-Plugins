@@ -21,7 +21,7 @@ FENCE_PATTERN = re.compile(
     r"```(?P<language>json|yaml|yml)\s*\r?\n(?P<body>.*?)```",
     re.IGNORECASE | re.DOTALL,
 )
-V1_RELEASE_FIELDS = {
+V1_FIELDS = {
     "author",
     "category",
     "manifest",
@@ -29,6 +29,8 @@ V1_RELEASE_FIELDS = {
     "packageSize",
     "packageUrl",
     "releaseNotesUrl",
+    "reportPath",
+    "type",
 }
 MANIFEST_FIELDS = {
     "schemaVersion",
@@ -61,6 +63,25 @@ def nested_keys(value: object) -> set[str]:
     return set()
 
 
+def yaml_mapping_entries(body: str) -> list[tuple[str, str]]:
+    # 仅识别简单 block/flow mapping 键，不实现 YAML 类型、锚点或合并语义。
+    entries: list[tuple[str, str]] = []
+    fragments = re.split(r"[\n{}\[\],]", textwrap.dedent(body))
+    key_pattern = re.compile(
+        r"^(?:\"(?P<double>[A-Za-z][A-Za-z0-9]*)\"|'(?P<single>[A-Za-z][A-Za-z0-9]*)'|(?P<plain>[A-Za-z][A-Za-z0-9]*))\s*:\s*(?P<value>.*)$"
+    )
+    for fragment in fragments:
+        candidate = fragment.strip()
+        if candidate.startswith("-"):
+            candidate = candidate[1:].lstrip()
+        match = key_pattern.match(candidate)
+        if match:
+            key = match.group("double") or match.group("single") or match.group("plain")
+            value = match.group("value").split("#", 1)[0].strip().strip("'").strip('"')
+            entries.append((key, value))
+    return entries
+
+
 def machine_contract_errors(text: str) -> list[str]:
     """只检查 fenced JSON/YAML 的机器字段，不解释自然语言。"""
     errors: list[str] = []
@@ -76,25 +97,18 @@ def machine_contract_errors(text: str) -> list[str]:
             schema_version = root.get("schemaVersion")
             root_plugins = "plugins" in root
         else:
-            entries = []
-            for line in textwrap.dedent(body).splitlines():
-                match = re.match(
-                    r"^(?P<indent>\s*)(?:-\s+)?(?P<key>[A-Za-z][A-Za-z0-9]*):(?:\s*(?P<value>[^#]*?))?\s*$",
-                    line,
-                )
-                if match:
-                    entries.append((len(match.group("indent")), match.group("key"), (match.group("value") or "").strip(" '\"")))
-            keys = {key for _, key, _ in entries}
-            schema_version = next((value for _, key, value in entries if key == "schemaVersion"), None)
-            root_plugins = any(indent == 0 and key == "plugins" for indent, key, _ in entries)
+            entries = yaml_mapping_entries(body)
+            keys = {key for key, _ in entries}
+            schema_version = next((value for key, value in entries if key == "schemaVersion"), None)
+            root_plugins = "plugins" in keys
 
         if schema_version in (1, "1"):
             errors.append(f"代码块 {index} 使用 schemaVersion 1。")
         if root_plugins:
             errors.append(f"代码块 {index} 使用 plugins 根字段。")
-        legacy = sorted(keys & V1_RELEASE_FIELDS)
+        legacy = sorted(keys & V1_FIELDS)
         if legacy:
-            errors.append(f"代码块 {index} 包含 v1 release 字段：{legacy}。")
+            errors.append(f"代码块 {index} 包含 v1 字段：{legacy}。")
     return errors
 
 
@@ -170,6 +184,32 @@ plugins:
                 self.assertTrue(any("schemaVersion 1" in error for error in errors))
                 self.assertTrue(any("plugins 根字段" in error for error in errors))
                 self.assertTrue(any(field in " ".join(errors) for field in ("packageUrl", "packageSize")))
+
+    def test_yaml_flow_mapping_and_quoted_keys_fail(self) -> None:
+        examples = (
+            """```yaml
+{schemaVersion: 1, plugins: [{packageUrl: https://example.test/old.zip}]}
+```""",
+            """```yaml
+"schemaVersion": 1
+'plugins':
+  - "packageSize": 100
+```""",
+        )
+        for example in examples:
+            with self.subTest(example=example.splitlines()[1]):
+                errors = " ".join(machine_contract_errors(example))
+                self.assertIn("schemaVersion 1", errors)
+                self.assertIn("plugins 根字段", errors)
+                self.assertTrue("packageUrl" in errors or "packageSize" in errors)
+
+    def test_actual_v1_manifest_json_fields_fail(self) -> None:
+        example = """```json
+{"id": "legacy-analyzer", "type": "Exe", "reportPath": "report/report.html"}
+```"""
+        errors = " ".join(machine_contract_errors(example))
+        self.assertIn("type", errors)
+        self.assertIn("reportPath", errors)
 
     def test_protected_documents_trigger_push_and_pull_request(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
