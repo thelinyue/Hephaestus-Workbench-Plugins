@@ -9,13 +9,24 @@ import binascii
 import json
 import re
 import sys
-import unicodedata
-from ipaddress import IPv6Address
-from urllib.parse import urlparse
 
 
 IDENTIFIER_PATTERN = re.compile(r"^[a-z0-9]+(?:[.-][a-z0-9]+)*$")
 KEY_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+# Schema 与 Python 共用同一条可维护语义：ASCII DNS（含 punycode）或严格 IPv4，不解析方括号 IPv6。
+_IPV4_OCTET_PATTERN = r"(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])"
+_IPV4_HOST_PATTERN = rf"(?:{_IPV4_OCTET_PATTERN}\.){{3}}{_IPV4_OCTET_PATTERN}"
+_DNS_LABEL_PATTERN = r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
+_DNS_HOST_PATTERN = (
+    rf"(?=[A-Za-z0-9.-]*[A-Za-z]){_DNS_LABEL_PATTERN}"
+    rf"(?:\.{_DNS_LABEL_PATTERN})*\.?"
+)
+_URI_CHARACTER_PATTERN = r"(?:[A-Za-z0-9._~:/?@!$&'()*+,;=\[\]-]|%[0-9A-Fa-f]{2})"
+HTTPS_URL_PATTERN_TEXT = (
+    rf"^[Hh][Tt][Tt][Pp][Ss]://(?:{_IPV4_HOST_PATTERN}|{_DNS_HOST_PATTERN})"
+    rf"(?::443)?(?:[/?]{_URI_CHARACTER_PATTERN}*)?(?![\s\S])"
+)
+HTTPS_URL_PATTERN = re.compile(HTTPS_URL_PATTERN_TEXT)
 SHA256_PATTERN = re.compile(r"^[0-9a-fA-F]{64}$")
 MAX_PACKAGE_BYTES = 209_715_200  # 与 Workbench 下载器的 200 MiB 安全上限保持一致。
 ALLOWED_KINDS = {"workspace", "analysis", "maintenance"}
@@ -76,62 +87,8 @@ def is_semantic_version(value: object) -> bool:
 
 
 def is_https_url(value: object) -> bool:
-    """校验 release 下载地址，避免凭据泄露、片段歧义和非标准 TLS 端口。"""
-    if not isinstance(value, str):
-        return False
-    if "#" in value or any(
-        character.isspace() or unicodedata.category(character) == "Cc"
-        for character in value
-    ):
-        return False
-
-    try:
-        parsed = urlparse(value)
-        hostname = parsed.hostname
-        port = parsed.port  # 访问属性以触发非法端口校验。
-    except ValueError:
-        return False
-
-    if (
-        parsed.scheme.lower() != "https"
-        or not hostname
-        or "\\" in parsed.netloc
-        or parsed.username is not None
-        or parsed.password is not None
-        or port not in (None, 443)
-    ):
-        return False
-
-    # urllib 会把显式空端口和 0443 都归一为无端口/443；这里保留文本边界，只接受省略端口或字面量 :443。
-    authority = parsed.netloc
-    if authority.startswith("["):
-        closing_bracket = authority.find("]")
-        port_suffix = authority[closing_bracket + 1 :] if closing_bracket >= 0 else "invalid"
-    else:
-        _, separator, port_text = authority.rpartition(":")
-        port_suffix = f":{port_text}" if separator else ""
-    if port_suffix not in ("", ":443"):
-        return False
-
-    if authority.startswith("["):
-        try:
-            IPv6Address(hostname)
-        except ValueError:
-            return False
-    else:
-        hostname_without_trailing_dot = hostname[:-1] if hostname.endswith(".") else hostname
-        try:
-            ascii_hostname = hostname_without_trailing_dot.encode("idna").decode("ascii")
-        except UnicodeError:
-            return False
-        labels = ascii_hostname.split(".")
-        if any(
-            not label
-            or any(not (character.isalnum() or character in "-_") for character in label)
-            for label in labels
-        ):
-            return False
-    return True
+    """校验正式 release URL；仅接受 ASCII DNS/IPv4、可选 :443 和 ASCII URI 路径/查询。"""
+    return isinstance(value, str) and bool(HTTPS_URL_PATTERN.fullmatch(value))
 
 
 def is_key_id(value: object) -> bool:

@@ -10,13 +10,40 @@ import re
 import unittest
 from pathlib import Path
 
-from validate_catalog import validate_catalog
+from validate_catalog import HTTPS_URL_PATTERN_TEXT, validate_catalog
 
 
 VALID_SIGNATURE = base64.b64encode(bytes(range(64))).decode("ascii")
 VALID_SHA256 = "0123456789abcdef" * 4
 MAX_PACKAGE_BYTES = 209_715_200
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
+RELEASE_URL_CORPUS = (
+    ("https://example.test/releases/package.zip", True),
+    ("HTTPS://downloads.example.test:443/releases/package.zip?source=catalog", True),
+    ("https://192.0.2.1/releases/package.zip", True),
+    ("https://192.0.2.1:443/releases/package.zip", True),
+    ("https://[2001:db8::1]/releases/package.zip", False),
+    ("https://[2001:db8::1]:443/releases/package.zip", False),
+    ("https://[fe80::1%25eth0]/releases/package.zip", False),
+    ("https://[:::]/releases/package.zip", False),
+    ("https://[192.0.2.1]/releases/package.zip", False),
+    ("https://[v1.fe80::]/releases/package.zip", False),
+    ("https://[invalid/releases/package.zip", False),
+    ("https://example.test\\evil.test/releases/package.zip", False),
+    ("https://example.test\\@evil.test/releases/package.zip", False),
+    ("https://example.test/releases/\npackage.zip", False),
+    ("https://example.test/releases/package.zip\n", False),
+    ("https://user@example.test/releases/package.zip", False),
+    ("https://user:password@example.test/releases/package.zip", False),
+    ("https://example.test/releases/package.zip#fragment", False),
+    ("https://example.test:/releases/package.zip", False),
+    ("https://example.test:444/releases/package.zip", False),
+    ("https://example.test:bad/releases/package.zip", False),
+    ("https://bad..example.test/releases/package.zip", False),
+    ("https://bad_name.example.test/releases/package.zip", False),
+    ("https://例子.测试/releases/package.zip", False),
+    ("https:///releases/package.zip", False),
+)
 
 
 def collect_object_keys(value: object) -> set[str]:
@@ -146,61 +173,47 @@ class CatalogV2ValidatorTests(unittest.TestCase):
                 data["extensions"][0]["releases"][0][field] = value
                 self.assert_invalid(data, field)
 
-    def test_accepts_https_url_with_valid_hostname_and_port(self) -> None:
-        for url in (
-            "https://example.test/releases/package.zip",
-            "https://example.test:443/releases/package.zip",
-            "https://[2001:db8::1]/releases/package.zip",
-            "https://[2001:db8::1]:443/releases/package.zip",
-        ):
+    def test_release_url_corpus_matches_python_validator(self) -> None:
+        for url, expected in RELEASE_URL_CORPUS:
             with self.subTest(url=url):
                 data = make_catalog()
                 data["extensions"][0]["releases"][0]["url"] = url
-                self.assertEqual([], validate_catalog(data))
+                self.assertEqual(expected, validate_catalog(data) == [])
 
-    def test_rejects_https_urls_the_host_cannot_parse(self) -> None:
-        for url in (
-            "https://[invalid/releases/package.zip",
-            "https://example.test:bad/releases/package.zip",
-            "https://exa mple.test/releases/package.zip",
-            "https://bad..example.test/releases/package.zip",
-            "https://example.test|evil/releases/package.zip",
-            "https://example.test\\@evil.test/releases/package.zip",
-            "https:///releases/package.zip",
-            "https://example.test/releases/\npackage.zip",
-        ):
-            with self.subTest(url=url):
-                data = make_catalog()
-                data["extensions"][0]["releases"][0]["url"] = url
-                self.assert_invalid(data, "绝对 HTTPS 地址")
+    def test_release_url_corpus_matches_schema_pattern_without_format(self) -> None:
+        with (REPOSITORY_ROOT / "schema" / "catalog.schema.json").open("r", encoding="utf-8") as stream:
+            schema = json.load(stream)
+        url_pattern = re.compile(schema["$defs"]["release"]["properties"]["url"]["pattern"])
 
-    def test_rejects_https_url_credentials_fragments_and_unsafe_ports(self) -> None:
-        for url in (
-            "https://user@example.test/releases/package.zip",
-            "https://user:password@example.test/releases/package.zip",
-            "https://@example.test/releases/package.zip",
-            "https://example.test/releases/package.zip#sha256",
-            "https://example.test/releases/package.zip#",
-            "https://example.test:/releases/package.zip",
-            "https://[2001:db8::1]:/releases/package.zip",
-            "https://example.test:80/releases/package.zip",
-            "https://example.test:444/releases/package.zip",
-            "https://[2001:db8::1]:8443/releases/package.zip",
-        ):
+        for url, expected in RELEASE_URL_CORPUS:
             with self.subTest(url=url):
-                data = make_catalog()
-                data["extensions"][0]["releases"][0]["url"] = url
-                self.assert_invalid(data, "绝对 HTTPS 地址")
+                self.assertEqual(
+                    expected,
+                    url_pattern.search(url) is not None,
+                    "Schema pattern 必须独立完成安全边界，不能依赖 format assertion。",
+                )
 
-    def test_rejects_ipvfuture_authority_not_supported_by_host(self) -> None:
-        for url in (
-            "https://[v1.fe80::]/releases/package.zip",
-            "https://[vF.example]/releases/package.zip",
-        ):
+    def test_release_url_corpus_has_no_validator_schema_drift(self) -> None:
+        with (REPOSITORY_ROOT / "schema" / "catalog.schema.json").open("r", encoding="utf-8") as stream:
+            schema = json.load(stream)
+        url_pattern = re.compile(schema["$defs"]["release"]["properties"]["url"]["pattern"])
+
+        for url, _ in RELEASE_URL_CORPUS:
+            data = make_catalog()
+            data["extensions"][0]["releases"][0]["url"] = url
             with self.subTest(url=url):
-                data = make_catalog()
-                data["extensions"][0]["releases"][0]["url"] = url
-                self.assert_invalid(data, "绝对 HTTPS 地址")
+                self.assertEqual(
+                    validate_catalog(data) == [],
+                    url_pattern.search(url) is not None,
+                )
+
+    def test_release_url_pattern_source_is_identical_in_schema_and_validator(self) -> None:
+        with (REPOSITORY_ROOT / "schema" / "catalog.schema.json").open("r", encoding="utf-8") as stream:
+            schema = json.load(stream)
+        self.assertEqual(
+            HTTPS_URL_PATTERN_TEXT,
+            schema["$defs"]["release"]["properties"]["url"]["pattern"],
+        )
 
     def test_release_size_matches_host_download_boundary(self) -> None:
         data = make_catalog()
@@ -305,25 +318,6 @@ class CatalogV2ValidatorTests(unittest.TestCase):
             MAX_PACKAGE_BYTES,
             schema["$defs"]["release"]["properties"]["size"]["maximum"],
         )
-
-        url_pattern = re.compile(schema["$defs"]["release"]["properties"]["url"]["pattern"])
-        for url in (
-            "https://example.test/releases/package.zip",
-            "https://example.test:443/releases/package.zip",
-            "https://[2001:db8::1]/releases/package.zip",
-            "https://[2001:db8::1]:443/releases/package.zip",
-        ):
-            with self.subTest(schema_url=url):
-                self.assertIsNotNone(url_pattern.fullmatch(url))
-        for url in (
-            "https://user@example.test/releases/package.zip",
-            "https://example.test/releases/package.zip#fragment",
-            "https://example.test:/releases/package.zip",
-            "https://example.test:444/releases/package.zip",
-            "https://[v1.fe80::]/releases/package.zip",
-        ):
-            with self.subTest(schema_url=url):
-                self.assertIsNone(url_pattern.fullmatch(url))
 
         key_id_schema = schema["$defs"]["signature"]["properties"]["keyId"]
         self.assertEqual(1, key_id_schema["minLength"])

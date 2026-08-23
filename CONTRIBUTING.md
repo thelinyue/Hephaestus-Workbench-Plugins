@@ -10,7 +10,7 @@
 每个 release 只能包含：
 
 - 严格 SemVer 的 `version` 和 `minHostVersion`；
-- 安全的绝对 HTTPS `url`：不得包含用户名或密码、fragment 或显式空端口，只能省略端口或显式使用 `443`；允许方括号形式的标准 IPv6，拒绝 IPvFuture；
+- 安全的绝对 HTTPS `url`：不得包含用户名或密码、fragment 或显式空端口，只能省略端口或显式使用 `443`；主机仅允许 ASCII DNS 名称（国际化域名须使用 punycode）或严格 IPv4；不支持 IPv6，包括标准无 scope IPv6、scoped IPv6 和 IPvFuture，也不接受方括号 IPv4；路径和查询只允许 ASCII URI 字符，其他字符必须使用百分号编码；
 - 与 ZIP 完全一致且位于 1 到 209715200 字节范围内的整数 `size`，以及 64 位十六进制 `sha256`；
 - `signature.keyId` 必须匹配 ASCII `[A-Za-z0-9](?:[A-Za-z0-9._-]{0,63})`（总长 1–64），不得包含空白、控制字符、路径片段或非 ASCII 字符；`signature` 必须是解码后正好 64 字节的 Base64 Ed25519 签名。
 

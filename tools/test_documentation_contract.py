@@ -205,6 +205,11 @@ class DocumentationV2ContractTests(unittest.TestCase):
                 self.assertIn("fragment", text)
                 self.assertIn("显式空端口", text)
                 self.assertIn("只能省略端口或显式使用 `443`", text)
+                self.assertIn("ASCII DNS", text)
+                self.assertIn("严格 IPv4", text)
+                self.assertIn("不支持 IPv6", text)
+                self.assertIn("scoped IPv6", text)
+                self.assertIn("路径和查询只允许 ASCII URI 字符", text)
                 self.assertIn("[A-Za-z0-9](?:[A-Za-z0-9._-]{0,63})", text)
 
     def test_natural_language_denials_do_not_trigger_machine_checks(self) -> None:
