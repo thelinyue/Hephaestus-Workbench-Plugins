@@ -11,7 +11,7 @@
 
 - 严格 SemVer 的 `version` 和 `minHostVersion`；
 - HTTPS `url`；
-- 与 ZIP 完全一致的正整数 `size` 和 64 位十六进制 `sha256`；
+- 与 ZIP 完全一致且位于 1 到 209715200 字节范围内的整数 `size`，以及 64 位十六进制 `sha256`；
 - `signature.keyId` 和解码后正好 64 字节的 Base64 Ed25519 `signature`。
 
 不要提交：

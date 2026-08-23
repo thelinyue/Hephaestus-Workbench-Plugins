@@ -26,7 +26,7 @@ extensions[]
 
 每个 release 的 Ed25519 `signature` 覆盖原始 ZIP 字节。目录只保存 `keyId` 和 Base64 签名，**不能携带公钥**；`keyId` 是否受信任以及允许的发布者、扩展类别和权限范围，完全由 Workbench 内置信任表决定。
 
-当前 `catalog.json` 中的 `replace-before-release`、1 字节大小、占位 SHA-256 和占位签名仅用于完成 v2 契约迁移，宿主不会信任该 key。正式发布前必须由发布流水线用真实 ZIP 的大小、SHA-256、正式 `keyId` 和 Ed25519 签名整体替换，否则扩展安装保持阻断。
+当前尚无可公开发布的真实签名资产，因此 `catalog.json` 只保留 `schemaVersion: 2`，并且 `extensions` 必须保持为空。只有正式发布流水线生成最终 ZIP，并取得真实大小、SHA-256、受信 `keyId` 和 Ed25519 签名且完成反向校验后，才允许向目录加入 release；仓库不得保存或发布占位 release。
 
 ## 仓库结构
 
@@ -51,4 +51,4 @@ python tools/validate_catalog.py catalog.json
 python tools/validate_rules.py
 ```
 
-校验器不依赖第三方 Python 包，并严格拒绝未知字段、不安全 ID、非 SemVer、非 HTTPS 地址、非正整数大小、非法 SHA-256、非 64 字节 Ed25519 Base64 签名以及重复扩展 ID/发布版本。
+校验器不依赖第三方 Python 包，并严格拒绝未知字段、不安全 ID、非 SemVer、非 HTTPS 地址、超出 1 到 209715200 字节范围的大小、非法 SHA-256、非 64 字节 Ed25519 Base64 签名以及重复扩展 ID/发布版本。

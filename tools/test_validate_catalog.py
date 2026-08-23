@@ -14,6 +14,7 @@ from validate_catalog import validate_catalog
 
 VALID_SIGNATURE = base64.b64encode(bytes(range(64))).decode("ascii")
 VALID_SHA256 = "0123456789abcdef" * 4
+MAX_PACKAGE_BYTES = 209_715_200
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -144,6 +145,43 @@ class CatalogV2ValidatorTests(unittest.TestCase):
                 data["extensions"][0]["releases"][0][field] = value
                 self.assert_invalid(data, field)
 
+    def test_accepts_https_url_with_valid_hostname_and_port(self) -> None:
+        for url in (
+            "https://example.test:443/releases/package.zip",
+            "https://[2001:db8::1]:443/releases/package.zip",
+        ):
+            with self.subTest(url=url):
+                data = make_catalog()
+                data["extensions"][0]["releases"][0]["url"] = url
+                self.assertEqual([], validate_catalog(data))
+
+    def test_rejects_https_urls_the_host_cannot_parse(self) -> None:
+        for url in (
+            "https://[invalid/releases/package.zip",
+            "https://example.test:bad/releases/package.zip",
+            "https://exa mple.test/releases/package.zip",
+            "https://bad..example.test/releases/package.zip",
+            "https://example.test|evil/releases/package.zip",
+            "https://example.test\\@evil.test/releases/package.zip",
+            "https:///releases/package.zip",
+            "https://example.test/releases/\npackage.zip",
+        ):
+            with self.subTest(url=url):
+                data = make_catalog()
+                data["extensions"][0]["releases"][0]["url"] = url
+                self.assert_invalid(data, "绝对 HTTPS 地址")
+
+    def test_release_size_matches_host_download_boundary(self) -> None:
+        data = make_catalog()
+        data["extensions"][0]["releases"][0]["size"] = MAX_PACKAGE_BYTES
+        self.assertEqual([], validate_catalog(data))
+
+        for size in (MAX_PACKAGE_BYTES + 1, 2**63):
+            with self.subTest(size=size):
+                data = make_catalog()
+                data["extensions"][0]["releases"][0]["size"] = size
+                self.assert_invalid(data, str(MAX_PACKAGE_BYTES))
+
     def test_rejects_invalid_ed25519_signature(self) -> None:
         for value in ("not-base64", base64.b64encode(bytes(63)).decode("ascii"), ""):
             with self.subTest(value=value):
@@ -182,6 +220,11 @@ class CatalogV2ValidatorTests(unittest.TestCase):
         with (REPOSITORY_ROOT / "catalog.json").open("r", encoding="utf-8") as stream:
             catalog = json.load(stream)
         self.assertEqual([], validate_catalog(catalog))
+        self.assertEqual(
+            {"schemaVersion": 2, "extensions": []},
+            catalog,
+            "真实签名资产准备完成前，公开 Catalog 必须保持为空。",
+        )
         forbidden = {
             "plugins",
             "author",
@@ -205,6 +248,10 @@ class CatalogV2ValidatorTests(unittest.TestCase):
         self.assertIn("release", schema["$defs"])
         self.assertIn("signature", schema["$defs"])
         self.assertNotIn("manifest", schema["$defs"])
+        self.assertEqual(
+            MAX_PACKAGE_BYTES,
+            schema["$defs"]["release"]["properties"]["size"]["maximum"],
+        )
 
         with (REPOSITORY_ROOT / "templates" / "extension-entry.json").open("r", encoding="utf-8") as stream:
             extension = json.load(stream)

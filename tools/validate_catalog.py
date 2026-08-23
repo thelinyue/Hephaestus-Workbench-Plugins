@@ -9,11 +9,13 @@ import binascii
 import json
 import re
 import sys
+import unicodedata
 from urllib.parse import urlparse
 
 
 IDENTIFIER_PATTERN = re.compile(r"^[a-z0-9]+(?:[.-][a-z0-9]+)*$")
 SHA256_PATTERN = re.compile(r"^[0-9a-fA-F]{64}$")
+MAX_PACKAGE_BYTES = 209_715_200  # 与 Workbench 下载器的 200 MiB 安全上限保持一致。
 ALLOWED_KINDS = {"workspace", "analysis", "maintenance"}
 ROOT_FIELDS = {"schemaVersion", "extensions"}
 EXTENSION_FIELDS = {"id", "name", "description", "publisherId", "kind", "releases"}
@@ -72,10 +74,38 @@ def is_semantic_version(value: object) -> bool:
 
 
 def is_https_url(value: object) -> bool:
+    """按 Workbench 可消费的边界检查绝对 HTTPS 地址。"""
     if not isinstance(value, str):
         return False
-    parsed = urlparse(value)
-    return parsed.scheme.lower() == "https" and bool(parsed.netloc)
+    if any(
+        character.isspace() or unicodedata.category(character) == "Cc"
+        for character in value
+    ):
+        return False
+
+    try:
+        parsed = urlparse(value)
+        hostname = parsed.hostname
+        _ = parsed.port  # 访问属性以触发非法端口校验。
+    except ValueError:
+        return False
+
+    if parsed.scheme.lower() != "https" or not hostname or "\\" in parsed.netloc:
+        return False
+    if ":" not in hostname:
+        hostname_without_trailing_dot = hostname[:-1] if hostname.endswith(".") else hostname
+        try:
+            ascii_hostname = hostname_without_trailing_dot.encode("idna").decode("ascii")
+        except UnicodeError:
+            return False
+        labels = ascii_hostname.split(".")
+        if any(
+            not label
+            or any(not (character.isalnum() or character in "-_") for character in label)
+            for label in labels
+        ):
+            return False
+    return True
 
 
 def validate_object_shape(
@@ -133,8 +163,8 @@ def validate_release(value: object, prefix: str, errors: list[str]) -> str | Non
         errors.append(f"{prefix}.url 必须是绝对 HTTPS 地址。")
 
     size = value.get("size")
-    if not isinstance(size, int) or isinstance(size, bool) or size <= 0:
-        errors.append(f"{prefix}.size 必须是大于 0 的整数。")
+    if not isinstance(size, int) or isinstance(size, bool) or not 0 < size <= MAX_PACKAGE_BYTES:
+        errors.append(f"{prefix}.size 必须是 1 到 {MAX_PACKAGE_BYTES} 字节之间的整数。")
 
     sha256 = value.get("sha256")
     if not isinstance(sha256, str) or not SHA256_PATTERN.fullmatch(sha256):

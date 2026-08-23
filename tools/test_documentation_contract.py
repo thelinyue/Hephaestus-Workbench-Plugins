@@ -6,7 +6,6 @@ from __future__ import annotations
 import fnmatch
 import json
 import re
-import textwrap
 import unittest
 from pathlib import Path
 
@@ -16,9 +15,10 @@ from validate_catalog import validate_catalog
 ROOT = Path(__file__).resolve().parent.parent
 PR_TEMPLATE = ROOT / ".github" / "PULL_REQUEST_TEMPLATE.md"
 DEVELOPMENT_GUIDE = ROOT / "docs" / "plugin-development.md"
+README = ROOT / "README.md"
 WORKFLOW = ROOT / ".github" / "workflows" / "validate-catalog.yml"
 FENCE_PATTERN = re.compile(
-    r"```(?P<language>json|yaml|yml)\s*\r?\n(?P<body>.*?)```",
+    r"```json[ \t]*\r?\n(?P<body>.*?)```",
     re.IGNORECASE | re.DOTALL,
 )
 V1_FIELDS = {
@@ -48,11 +48,9 @@ MANIFEST_FIELDS = {
 }
 
 
-def machine_blocks(text: str) -> list[tuple[str, str]]:
-    return [
-        (match.group("language").lower(), match.group("body").strip())
-        for match in FENCE_PATTERN.finditer(text)
-    ]
+def machine_blocks(text: str) -> list[str]:
+    """提取标记为 json 的 fenced 代码块；其他语言不进入机器契约。"""
+    return [match.group("body").strip() for match in FENCE_PATTERN.finditer(text)]
 
 
 def nested_keys(value: object) -> set[str]:
@@ -63,44 +61,19 @@ def nested_keys(value: object) -> set[str]:
     return set()
 
 
-def yaml_mapping_entries(body: str) -> list[tuple[str, str]]:
-    # 仅识别简单 block/flow mapping 键，不实现 YAML 类型、锚点或合并语义。
-    entries: list[tuple[str, str]] = []
-    fragments = re.split(r"[\n{}\[\],]", textwrap.dedent(body))
-    key_pattern = re.compile(
-        r"^(?:\"(?P<double>[A-Za-z][A-Za-z0-9]*)\"|'(?P<single>[A-Za-z][A-Za-z0-9]*)'|(?P<plain>[A-Za-z][A-Za-z0-9]*))\s*:\s*(?P<value>.*)$"
-    )
-    for fragment in fragments:
-        candidate = fragment.strip()
-        if candidate.startswith("-"):
-            candidate = candidate[1:].lstrip()
-        match = key_pattern.match(candidate)
-        if match:
-            key = match.group("double") or match.group("single") or match.group("plain")
-            value = match.group("value").split("#", 1)[0].strip().strip("'").strip('"')
-            entries.append((key, value))
-    return entries
-
-
 def machine_contract_errors(text: str) -> list[str]:
-    """只检查 fenced JSON/YAML 的机器字段，不解释自然语言。"""
+    """只检查严格 fenced JSON 的机器字段，不解释自然语言或其他代码块。"""
     errors: list[str] = []
-    for index, (language, body) in enumerate(machine_blocks(text), start=1):
-        if language == "json":
-            try:
-                data = json.loads(body)
-            except json.JSONDecodeError as exception:
-                errors.append(f"代码块 {index} JSON 无法解析：第 {exception.lineno} 行。")
-                continue
-            root = data if isinstance(data, dict) else {}
-            keys = nested_keys(data)
-            schema_version = root.get("schemaVersion")
-            root_plugins = "plugins" in root
-        else:
-            entries = yaml_mapping_entries(body)
-            keys = {key for key, _ in entries}
-            schema_version = next((value for key, value in entries if key == "schemaVersion"), None)
-            root_plugins = "plugins" in keys
+    for index, body in enumerate(machine_blocks(text), start=1):
+        try:
+            data = json.loads(body)
+        except json.JSONDecodeError as exception:
+            errors.append(f"代码块 {index} JSON 无法解析：第 {exception.lineno} 行。")
+            continue
+        root = data if isinstance(data, dict) else {}
+        keys = nested_keys(data)
+        schema_version = root.get("schemaVersion")
+        root_plugins = "plugins" in root
 
         if schema_version in (1, "1"):
             errors.append(f"代码块 {index} 使用 schemaVersion 1。")
@@ -115,8 +88,7 @@ def machine_contract_errors(text: str) -> list[str]:
 def parsed_json_examples(text: str) -> list[dict[str, object]]:
     return [
         data
-        for language, body in machine_blocks(text)
-        if language == "json"
+        for body in machine_blocks(text)
         for data in [json.loads(body)]
         if isinstance(data, dict)
     ]
@@ -167,41 +139,24 @@ class DocumentationV2ContractTests(unittest.TestCase):
     def test_natural_language_denials_do_not_trigger_machine_checks(self) -> None:
         self.assertEqual([], machine_contract_errors("明确禁止 report.html 和 IAnalysisPlugin，不接受旧协议。"))
 
-    def test_actual_v1_json_and_yaml_examples_fail(self) -> None:
-        examples = (
-            '''```json
+    def test_actual_v1_json_examples_fail(self) -> None:
+        example = '''```json
 {"schemaVersion": 1, "plugins": [{"packageUrl": "https://example.test/old.zip"}]}
-```''',
-            '''```yaml
+```'''
+        errors = machine_contract_errors(example)
+        self.assertTrue(any("schemaVersion 1" in error for error in errors))
+        self.assertTrue(any("plugins 根字段" in error for error in errors))
+        self.assertTrue(any("packageUrl" in error for error in errors))
+
+    def test_non_json_fences_are_not_machine_contracts(self) -> None:
+        example = '''```yaml
 schemaVersion: 1
+description: "迁移说明, type: process"
 plugins:
   - packageSize: 100
-```''',
-        )
-        for example in examples:
-            with self.subTest(example=example[:10]):
-                errors = machine_contract_errors(example)
-                self.assertTrue(any("schemaVersion 1" in error for error in errors))
-                self.assertTrue(any("plugins 根字段" in error for error in errors))
-                self.assertTrue(any(field in " ".join(errors) for field in ("packageUrl", "packageSize")))
-
-    def test_yaml_flow_mapping_and_quoted_keys_fail(self) -> None:
-        examples = (
-            """```yaml
-{schemaVersion: 1, plugins: [{packageUrl: https://example.test/old.zip}]}
-```""",
-            """```yaml
-"schemaVersion": 1
-'plugins':
-  - "packageSize": 100
-```""",
-        )
-        for example in examples:
-            with self.subTest(example=example.splitlines()[1]):
-                errors = " ".join(machine_contract_errors(example))
-                self.assertIn("schemaVersion 1", errors)
-                self.assertIn("plugins 根字段", errors)
-                self.assertTrue("packageUrl" in errors or "packageSize" in errors)
+```'''
+        self.assertEqual([], machine_blocks(example))
+        self.assertEqual([], machine_contract_errors(example))
 
     def test_actual_v1_manifest_json_fields_fail(self) -> None:
         example = """```json
@@ -210,6 +165,12 @@ plugins:
         errors = " ".join(machine_contract_errors(example))
         self.assertIn("type", errors)
         self.assertIn("reportPath", errors)
+
+    def test_readme_keeps_catalog_empty_until_real_signed_assets_exist(self) -> None:
+        text = README.read_text(encoding="utf-8")
+        self.assertIn("真实签名资产", text)
+        self.assertIn("extensions` 必须保持为空", text)
+        self.assertNotIn("replace-before-release", text)
 
     def test_protected_documents_trigger_push_and_pull_request(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
