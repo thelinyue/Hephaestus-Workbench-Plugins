@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 
 
 IDENTIFIER_PATTERN = re.compile(r"^[a-z0-9]+(?:[.-][a-z0-9]+)*$")
+KEY_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 SHA256_PATTERN = re.compile(r"^[0-9a-fA-F]{64}$")
 MAX_PACKAGE_BYTES = 209_715_200  # 与 Workbench 下载器的 200 MiB 安全上限保持一致。
 ALLOWED_KINDS = {"workspace", "analysis", "maintenance"}
@@ -75,10 +76,10 @@ def is_semantic_version(value: object) -> bool:
 
 
 def is_https_url(value: object) -> bool:
-    """按 Workbench 可消费的边界检查绝对 HTTPS 地址。"""
+    """校验 release 下载地址，避免凭据泄露、片段歧义和非标准 TLS 端口。"""
     if not isinstance(value, str):
         return False
-    if any(
+    if "#" in value or any(
         character.isspace() or unicodedata.category(character) == "Cc"
         for character in value
     ):
@@ -87,14 +88,31 @@ def is_https_url(value: object) -> bool:
     try:
         parsed = urlparse(value)
         hostname = parsed.hostname
-        _ = parsed.port  # 访问属性以触发非法端口校验。
+        port = parsed.port  # 访问属性以触发非法端口校验。
     except ValueError:
         return False
 
-    if parsed.scheme.lower() != "https" or not hostname or "\\" in parsed.netloc:
+    if (
+        parsed.scheme.lower() != "https"
+        or not hostname
+        or "\\" in parsed.netloc
+        or parsed.username is not None
+        or parsed.password is not None
+        or port not in (None, 443)
+    ):
         return False
 
-    authority = parsed.netloc.rsplit("@", 1)[-1]
+    # urllib 会把显式空端口和 0443 都归一为无端口/443；这里保留文本边界，只接受省略端口或字面量 :443。
+    authority = parsed.netloc
+    if authority.startswith("["):
+        closing_bracket = authority.find("]")
+        port_suffix = authority[closing_bracket + 1 :] if closing_bracket >= 0 else "invalid"
+    else:
+        _, separator, port_text = authority.rpartition(":")
+        port_suffix = f":{port_text}" if separator else ""
+    if port_suffix not in ("", ":443"):
+        return False
+
     if authority.startswith("["):
         try:
             IPv6Address(hostname)
@@ -114,6 +132,11 @@ def is_https_url(value: object) -> bool:
         ):
             return False
     return True
+
+
+def is_key_id(value: object) -> bool:
+    """keyId 只允许短 ASCII 安全字符，禁止空白、控制字符、路径和 Unicode 混淆。"""
+    return isinstance(value, str) and bool(KEY_ID_PATTERN.fullmatch(value))
 
 
 def validate_object_shape(
@@ -140,8 +163,8 @@ def validate_signature(value: object, prefix: str, errors: list[str]) -> None:
         return
     assert isinstance(value, dict)
 
-    if not is_non_empty_string(value.get("keyId")):
-        errors.append(f"{prefix}.keyId 不能为空。")
+    if not is_key_id(value.get("keyId")):
+        errors.append(f"{prefix}.keyId 必须是 1 到 64 位 ASCII 安全标识。")
 
     signature = value.get("signature")
     if not is_non_empty_string(signature):

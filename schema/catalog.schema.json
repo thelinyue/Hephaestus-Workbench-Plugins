@@ -70,7 +70,7 @@
         "url": {
           "type": "string",
           "format": "uri",
-          "pattern": "^[Hh][Tt][Tt][Pp][Ss]://"
+          "pattern": "^[Hh][Tt][Tt][Pp][Ss]://(?:\\[[0-9A-Fa-f:.]+\\]|[^/?#@:]+)(?::443)?(?:[/?][^#]*)?$"
         },
         "size": {
           "type": "integer",
@@ -93,7 +93,9 @@
       "properties": {
         "keyId": {
           "type": "string",
-          "pattern": "\\S"
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
         },
         "signature": {
           "type": "string",

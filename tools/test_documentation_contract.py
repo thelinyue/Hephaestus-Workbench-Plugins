@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PR_TEMPLATE = ROOT / ".github" / "PULL_REQUEST_TEMPLATE.md"
 DEVELOPMENT_GUIDE = ROOT / "docs" / "plugin-development.md"
 README = ROOT / "README.md"
+CONTRIBUTING = ROOT / "CONTRIBUTING.md"
 WORKFLOW = ROOT / ".github" / "workflows" / "validate-catalog.yml"
 FENCE_PATTERN = re.compile(
     r"```json[ \t]*\r?\n(?P<body>.*?)```",
@@ -45,6 +46,32 @@ MANIFEST_FIELDS = {
     "capabilities",
     "permissions",
     "dependencies",
+}
+MANIFEST_MATRIX = {
+    ("workspace", "web"): {
+        "runtime_fields": {"kind", "entry"},
+        "capabilities": {"workspace.page"},
+        "permissions": {"workspace.readText"},
+    },
+    ("analysis", "process"): {
+        "runtime_fields": {"kind", "protocol", "entry"},
+        "capabilities": {
+            "analysis.engine",
+            "analysis.scope.comprehensive",
+            "analysis.scope.storage",
+        },
+        "permissions": set(),
+    },
+    ("analysis", "content"): {
+        "runtime_fields": {"kind"},
+        "capabilities": {"analysis.rule-pack", "analysis.report-template"},
+        "permissions": set(),
+    },
+    ("maintenance", "content"): {
+        "runtime_fields": {"kind"},
+        "capabilities": {"maintenance.workflow-pack", "maintenance.command-profile"},
+        "permissions": set(),
+    },
 }
 
 
@@ -135,6 +162,50 @@ class DocumentationV2ContractTests(unittest.TestCase):
 
         for requirement in ("analysis-process-v1", "Report/index.html", "Ed25519", "原始 ZIP 字节"):
             self.assertIn(requirement, text)
+
+    def test_readme_manifest_examples_cover_complete_v2_matrix(self) -> None:
+        text = README.read_text(encoding="utf-8")
+        self.assertEqual([], machine_contract_errors(text))
+        manifests = [
+            example
+            for example in parsed_json_examples(text)
+            if set(example) == MANIFEST_FIELDS
+        ]
+        actual = {}
+        for manifest in manifests:
+            self.assertEqual(2, manifest["schemaVersion"])
+            runtime = manifest["runtime"]
+            self.assertIsInstance(runtime, dict)
+            combination = (manifest["kind"], runtime["kind"])
+            self.assertNotIn(combination, actual, f"README 重复 manifest 组合：{combination}")
+            actual[combination] = manifest
+
+        self.assertEqual(set(MANIFEST_MATRIX), set(actual))
+        for combination, expected in MANIFEST_MATRIX.items():
+            with self.subTest(combination=combination):
+                manifest = actual[combination]
+                runtime = manifest["runtime"]
+                capabilities = manifest["capabilities"]
+                permissions = manifest["permissions"]
+                self.assertEqual(expected["runtime_fields"], set(runtime))
+                self.assertEqual(expected["capabilities"], set(capabilities))
+                self.assertEqual(len(capabilities), len(set(capabilities)))
+                self.assertEqual(expected["permissions"], set(permissions))
+                self.assertEqual(len(permissions), len(set(permissions)))
+                if combination == ("analysis", "process"):
+                    self.assertEqual("analysis-process-v1", runtime["protocol"])
+                if combination[1] in {"process", "web"}:
+                    self.assertTrue(runtime["entry"])
+
+    def test_publication_docs_state_url_and_key_id_security_boundary(self) -> None:
+        for source in (README, CONTRIBUTING):
+            with self.subTest(source=source.name):
+                text = source.read_text(encoding="utf-8")
+                self.assertIn("不得包含用户名或密码", text)
+                self.assertIn("fragment", text)
+                self.assertIn("显式空端口", text)
+                self.assertIn("只能省略端口或显式使用 `443`", text)
+                self.assertIn("[A-Za-z0-9](?:[A-Za-z0-9._-]{0,63})", text)
 
     def test_natural_language_denials_do_not_trigger_machine_checks(self) -> None:
         self.assertEqual([], machine_contract_errors("明确禁止 report.html 和 IAnalysisPlugin，不接受旧协议。"))

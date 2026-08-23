@@ -6,6 +6,7 @@ from __future__ import annotations
 import base64
 import copy
 import json
+import re
 import unittest
 from pathlib import Path
 
@@ -147,7 +148,9 @@ class CatalogV2ValidatorTests(unittest.TestCase):
 
     def test_accepts_https_url_with_valid_hostname_and_port(self) -> None:
         for url in (
+            "https://example.test/releases/package.zip",
             "https://example.test:443/releases/package.zip",
+            "https://[2001:db8::1]/releases/package.zip",
             "https://[2001:db8::1]:443/releases/package.zip",
         ):
             with self.subTest(url=url):
@@ -165,6 +168,24 @@ class CatalogV2ValidatorTests(unittest.TestCase):
             "https://example.test\\@evil.test/releases/package.zip",
             "https:///releases/package.zip",
             "https://example.test/releases/\npackage.zip",
+        ):
+            with self.subTest(url=url):
+                data = make_catalog()
+                data["extensions"][0]["releases"][0]["url"] = url
+                self.assert_invalid(data, "绝对 HTTPS 地址")
+
+    def test_rejects_https_url_credentials_fragments_and_unsafe_ports(self) -> None:
+        for url in (
+            "https://user@example.test/releases/package.zip",
+            "https://user:password@example.test/releases/package.zip",
+            "https://@example.test/releases/package.zip",
+            "https://example.test/releases/package.zip#sha256",
+            "https://example.test/releases/package.zip#",
+            "https://example.test:/releases/package.zip",
+            "https://[2001:db8::1]:/releases/package.zip",
+            "https://example.test:80/releases/package.zip",
+            "https://example.test:444/releases/package.zip",
+            "https://[2001:db8::1]:8443/releases/package.zip",
         ):
             with self.subTest(url=url):
                 data = make_catalog()
@@ -199,10 +220,32 @@ class CatalogV2ValidatorTests(unittest.TestCase):
                 data["extensions"][0]["releases"][0]["signature"]["signature"] = value
                 self.assert_invalid(data, "signature")
 
-    def test_rejects_blank_key_id_and_unknown_kind(self) -> None:
-        data = make_catalog()
-        data["extensions"][0]["releases"][0]["signature"]["keyId"] = "  "
-        self.assert_invalid(data, "keyId")
+    def test_accepts_safe_key_id_boundaries(self) -> None:
+        for key_id in ("a", "Official.Release_Key-2026", "A" * 64):
+            with self.subTest(key_id=key_id):
+                data = make_catalog()
+                data["extensions"][0]["releases"][0]["signature"]["keyId"] = key_id
+                self.assertEqual([], validate_catalog(data))
+
+    def test_rejects_unsafe_key_ids_and_unknown_kind(self) -> None:
+        for key_id in (
+            "",
+            "  ",
+            " leading",
+            "trailing ",
+            "line\nbreak",
+            "control\x00character",
+            ".hidden",
+            "../official-key",
+            "keys/official-key",
+            "keys\\official-key",
+            "密钥",
+            "A" * 65,
+        ):
+            with self.subTest(key_id=key_id):
+                data = make_catalog()
+                data["extensions"][0]["releases"][0]["signature"]["keyId"] = key_id
+                self.assert_invalid(data, "keyId")
 
         data = make_catalog()
         data["extensions"][0]["kind"] = "tool"
@@ -262,6 +305,34 @@ class CatalogV2ValidatorTests(unittest.TestCase):
             MAX_PACKAGE_BYTES,
             schema["$defs"]["release"]["properties"]["size"]["maximum"],
         )
+
+        url_pattern = re.compile(schema["$defs"]["release"]["properties"]["url"]["pattern"])
+        for url in (
+            "https://example.test/releases/package.zip",
+            "https://example.test:443/releases/package.zip",
+            "https://[2001:db8::1]/releases/package.zip",
+            "https://[2001:db8::1]:443/releases/package.zip",
+        ):
+            with self.subTest(schema_url=url):
+                self.assertIsNotNone(url_pattern.fullmatch(url))
+        for url in (
+            "https://user@example.test/releases/package.zip",
+            "https://example.test/releases/package.zip#fragment",
+            "https://example.test:/releases/package.zip",
+            "https://example.test:444/releases/package.zip",
+            "https://[v1.fe80::]/releases/package.zip",
+        ):
+            with self.subTest(schema_url=url):
+                self.assertIsNone(url_pattern.fullmatch(url))
+
+        key_id_schema = schema["$defs"]["signature"]["properties"]["keyId"]
+        self.assertEqual(1, key_id_schema["minLength"])
+        self.assertEqual(64, key_id_schema["maxLength"])
+        key_id_pattern = re.compile(key_id_schema["pattern"])
+        self.assertIsNotNone(key_id_pattern.fullmatch("Official.Release_Key-2026"))
+        for key_id in (".hidden", "../official-key", "密钥", "A" * 65):
+            with self.subTest(schema_key_id=key_id):
+                self.assertIsNone(key_id_pattern.fullmatch(key_id))
 
         with (REPOSITORY_ROOT / "templates" / "extension-entry.json").open("r", encoding="utf-8") as stream:
             extension = json.load(stream)
