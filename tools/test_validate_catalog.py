@@ -171,6 +171,16 @@ class CatalogV2ValidatorTests(unittest.TestCase):
                 data["extensions"][0]["releases"][0]["url"] = url
                 self.assert_invalid(data, "绝对 HTTPS 地址")
 
+    def test_rejects_ipvfuture_authority_not_supported_by_host(self) -> None:
+        for url in (
+            "https://[v1.fe80::]/releases/package.zip",
+            "https://[vF.example]/releases/package.zip",
+        ):
+            with self.subTest(url=url):
+                data = make_catalog()
+                data["extensions"][0]["releases"][0]["url"] = url
+                self.assert_invalid(data, "绝对 HTTPS 地址")
+
     def test_release_size_matches_host_download_boundary(self) -> None:
         data = make_catalog()
         data["extensions"][0]["releases"][0]["size"] = MAX_PACKAGE_BYTES

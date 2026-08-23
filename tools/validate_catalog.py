@@ -10,6 +10,7 @@ import json
 import re
 import sys
 import unicodedata
+from ipaddress import IPv6Address
 from urllib.parse import urlparse
 
 
@@ -92,7 +93,14 @@ def is_https_url(value: object) -> bool:
 
     if parsed.scheme.lower() != "https" or not hostname or "\\" in parsed.netloc:
         return False
-    if ":" not in hostname:
+
+    authority = parsed.netloc.rsplit("@", 1)[-1]
+    if authority.startswith("["):
+        try:
+            IPv6Address(hostname)
+        except ValueError:
+            return False
+    else:
         hostname_without_trailing_dot = hostname[:-1] if hostname.endswith(".") else hostname
         try:
             ascii_hostname = hostname_without_trailing_dot.encode("idna").decode("ascii")
