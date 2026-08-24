@@ -159,12 +159,38 @@ def validate_manifest(value: object, prefix: str) -> list[str]:
         if runtime_kind == "process" and runtime.get("protocol") != "analysis-process-v1":
             errors.append(f"{prefix}.runtime.protocol 必须为 analysis-process-v1。")
 
-    for field in ("capabilities", "permissions", "dependencies"):
+    for field in ("capabilities", "permissions"):
         collection = value.get(field)
         if not isinstance(collection, list):
             errors.append(f"{prefix}.{field} 必须是数组。")
         elif any(not is_non_empty_string(item) for item in collection):
             errors.append(f"{prefix}.{field} 只能包含非空字符串。")
+
+    dependencies = value.get("dependencies")
+    if not isinstance(dependencies, list):
+        errors.append(f"{prefix}.dependencies 必须是对象数组。")
+    else:
+        dependency_ids: set[str] = set()
+        # 依赖声明固定为 id/version，避免交接 metadata 引入未定义的解析语义。
+        for index, dependency in enumerate(dependencies):
+            dependency_prefix = f"{prefix}.dependencies[{index}]"
+            dependency_errors = object_shape_errors(dependency, dependency_prefix, {"id", "version"}, {"id", "version"})
+            errors.extend(dependency_errors)
+            if dependency_errors or not isinstance(dependency, dict):
+                continue
+
+            dependency_id = dependency.get("id")
+            if not is_identifier(dependency_id):
+                errors.append(f"{dependency_prefix}.id 必须是安全 ID。")
+            else:
+                if dependency_id == value.get("id"):
+                    errors.append(f"{dependency_prefix}.id 不能依赖自身：{dependency_id}。")
+                elif dependency_id in dependency_ids:
+                    errors.append(f"{prefix}.dependencies 包含重复依赖 ID：{dependency_id}。")
+                else:
+                    dependency_ids.add(dependency_id)
+            if not is_semantic_version(dependency.get("version")):
+                errors.append(f"{dependency_prefix}.version 必须是严格 SemVer。")
     return errors
 
 

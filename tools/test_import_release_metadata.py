@@ -126,6 +126,37 @@ class ReleaseMetadataImportTests(unittest.TestCase):
         with self.assertRaisesRegex(MetadataValidationError, text):
             build_catalog_update(self.metadata_path, self.zip_path, self.catalog_path)
 
+    def test_accepts_manifest_dependency_objects_with_prerelease_versions(self) -> None:
+        self.manifest["dependencies"] = [{"id": "shared-library", "version": "1.2.3-rc.1"}]
+        write_zip(self.zip_path, self.manifest)
+        self.write_inputs()
+
+        self.assertIsInstance(build_catalog_update(self.metadata_path, self.zip_path, self.catalog_path), dict)
+
+    def test_rejects_invalid_manifest_dependencies(self) -> None:
+        cases: list[tuple[str, object]] = [
+            ("必须是对象数组", {"id": "shared-library", "version": "1.2.3"}),
+            ("必须是对象", ["shared-library"]),
+            ("缺少字段：id", [{"version": "1.2.3"}]),
+            ("未知字段：extra", [{"id": "shared-library", "version": "1.2.3", "extra": True}]),
+            ("必须是安全 ID", [{"id": "Shared Library", "version": "1.2.3"}]),
+            ("必须是严格 SemVer", [{"id": "shared-library", "version": "1.02.3"}]),
+            (
+                "包含重复依赖 ID：shared-library",
+                [
+                    {"id": "shared-library", "version": "1.2.3"},
+                    {"id": "shared-library", "version": "2.0.0"},
+                ],
+            ),
+            ("不能依赖自身：log-analyzer", [{"id": "log-analyzer", "version": "1.2.3"}]),
+        ]
+
+        for expected, dependencies in cases:
+            with self.subTest(expected=expected):
+                self.manifest["dependencies"] = dependencies
+                write_zip(self.zip_path, self.manifest)
+                self.assert_rejected(expected)
+
     def test_rejects_manifest_identity_or_full_content_not_identical_to_zip_manifest(self) -> None:
         for field, value in (("id", "other-analyzer"), ("capabilities", ["analysis.report-template"])):
             with self.subTest(field=field):
