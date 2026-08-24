@@ -148,4 +148,15 @@ python tools/validate_catalog.py catalog.json
 python tools/validate_rules.py
 ```
 
+### release-metadata v2 离线交接
+
+正式发布流水线可将已生成的 `release-metadata.json`、最终本地 ZIP 和现有 Catalog 显式交给离线工具。工具**绝不联网，也不读取或解析 `latest`**；它会严格拒绝未知或缺失字段、复算 ZIP 的大小和 SHA-256，并把 metadata 中的完整 manifest 与 ZIP 根目录唯一的 `manifest.json` 完全比较。`keyId` 和签名只检查安全格式及 64 字节 Ed25519 Base64 长度，Catalog 不携带公钥，也不在这里建立公钥信任。
+
+```powershell
+python -B tools/import_release_metadata.py --metadata release-metadata.json --zip .\dist\your-extension-2.0.0.zip --catalog catalog.json --check
+python -B tools/import_release_metadata.py --metadata release-metadata.json --zip .\dist\your-extension-2.0.0.zip --catalog catalog.json --output .\candidate-catalog.json
+```
+
+`--check` 不写入任何文件；`--output` 只写入显式候选路径，默认不会修改真实 `catalog.json`。工具只能向已审核、已含 `description` 的 Catalog extension 追加 release；ExtensionManifestV2 不包含 `description`，因此遇到新扩展会明确拒绝，必须先经过人工审核创建条目。
+
 校验器不依赖第三方 Python 包，并严格拒绝未知字段、不安全 ID、非 SemVer、非 HTTPS 地址、超出 1 到 209715200 字节范围的大小、非法 SHA-256、非 64 字节 Ed25519 Base64 签名以及重复扩展 ID/发布版本。
