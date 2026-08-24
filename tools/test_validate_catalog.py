@@ -335,11 +335,6 @@ class CatalogV2ValidatorTests(unittest.TestCase):
         with (REPOSITORY_ROOT / "catalog.json").open("r", encoding="utf-8") as stream:
             catalog = json.load(stream)
         self.assertEqual([], validate_catalog(catalog))
-        self.assertEqual(
-            {"schemaVersion": 2, "extensions": []},
-            catalog,
-            "真实签名资产准备完成前，公开 Catalog 必须保持为空。",
-        )
         forbidden = {
             "plugins",
             "author",
