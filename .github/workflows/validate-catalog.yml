@@ -1,4 +1,4 @@
-name: Validate plugin catalog
+name: Validate extension catalog
 
 on:
   push:
@@ -7,14 +7,24 @@ on:
       - "catalog.json"
       - "rules/**"
       - "schema/**"
+      - "templates/**"
       - "tools/**"
+      - "docs/**"
+      - ".github/PULL_REQUEST_TEMPLATE.md"
+      - "README.md"
+      - "CONTRIBUTING.md"
       - ".github/workflows/validate-catalog.yml"
   pull_request:
     paths:
       - "catalog.json"
       - "rules/**"
       - "schema/**"
+      - "templates/**"
       - "tools/**"
+      - "docs/**"
+      - ".github/PULL_REQUEST_TEMPLATE.md"
+      - "README.md"
+      - "CONTRIBUTING.md"
       - ".github/workflows/validate-catalog.yml"
 
 permissions:
@@ -22,7 +32,7 @@ permissions:
 
 jobs:
   validate:
-    name: Validate catalog
+    name: Validate v2 catalog and rules
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -31,7 +41,9 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-      - name: Validate catalog
+      - name: Run catalog validator tests
+        run: python -m unittest discover -s tools -p "test_*.py" -v
+      - name: Validate extension catalog v2
         run: python tools/validate_catalog.py catalog.json
       - name: Validate signed rules
         run: python tools/validate_rules.py
